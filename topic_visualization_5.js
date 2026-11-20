@@ -187,30 +187,32 @@
   }
 
   async function fetchTopicData(itemId) {
-    const anchors = document.querySelectorAll('a[href]');
-    let jsonUrl = null;
-
-    for (let i = 0; i < anchors.length; i++) {
-      const href = anchors[i].getAttribute('href') || '';
-      if (matchesFile(href)) {
-        jsonUrl = anchors[i].href;
-        break;
-      }
-    }
-
-    if (!jsonUrl) {
+    // Works even if Omeka lives in a subdirectory like /omeka/
+    const apiBase = window.location.pathname.split('/s/')[0] + '/api';
+  
+    const listRes = await fetch(apiBase + '/media?item_id=' + itemId);
+    if (!listRes.ok) throw new Error('Media API failed: ' + listRes.status);
+    const mediaList = await listRes.json();
+  
+    const match = mediaList.find(function (m) {
+      const src = (m['o:source'] || '').toLowerCase();
+      if (!src.endsWith('.json')) return false;
+      return _is5 ? src.includes('_5class') : !src.includes('_5class');
+    });
+  
+    if (!match) {
       throw new Error(
-        'No matching JSON media link found ' +
-        (_is5 ? '(expected *_5class.json)' : '(expected *.json, non-_5class)')
+        'No matching JSON media found ' +
+        (_is5 ? '(expected source *_5class.json)' : '(expected source *.json, non-_5class)')
       );
     }
-
-    const dataResponse = await fetch(jsonUrl);
+  
+    const dataResponse = await fetch(match['o:original_url']);
     if (!dataResponse.ok) {
       throw new Error('JSON fetch failed: ' + dataResponse.status);
     }
     return dataResponse.json();
-  }
+}
 
   // ======================================================================
   // Page context.
