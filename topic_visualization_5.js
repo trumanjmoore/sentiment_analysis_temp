@@ -185,29 +185,28 @@
     if (_is5) return lower.includes('_5class');
     return !lower.includes('_5class');
   }
-
   async function fetchTopicData(itemId) {
-    // Works even if Omeka lives in a subdirectory like /omeka/
-    const apiBase = window.location.pathname.split('/s/')[0] + '/api';
-  
-    const listRes = await fetch(apiBase + '/media?item_id=' + itemId);
-    if (!listRes.ok) throw new Error('Media API failed: ' + listRes.status);
-    const mediaList = await listRes.json();
-  
-    const match = mediaList.find(function (m) {
-      const src = (m['o:source'] || '').toLowerCase();
-      if (!src.endsWith('.json')) return false;
-      return _is5 ? src.includes('_5class') : !src.includes('_5class');
+    // Collect unique .json links in page order
+    const urls = [];
+    document.querySelectorAll('a[href]').forEach(function (a) {
+      const href = a.href;
+      if (href.toLowerCase().split('?')[0].endsWith('.json') &&
+          urls.indexOf(href) === -1) {
+        urls.push(href);
+      }
     });
+    console.log('[topic explorer] json links found:', urls);
   
-    if (!match) {
+    // 1st JSON = 3-class, 2nd JSON = 5-class
+    const jsonUrl = urls[_is5 ? 1 : 0];
+    if (!jsonUrl) {
       throw new Error(
-        'No matching JSON media found ' +
-        (_is5 ? '(expected source *_5class.json)' : '(expected source *.json, non-_5class)')
+        'Expected at least ' + (_is5 ? '2' : '1') +
+        ' JSON links, found ' + urls.length
       );
     }
   
-    const dataResponse = await fetch(match['o:original_url']);
+    const dataResponse = await fetch(jsonUrl);
     if (!dataResponse.ok) {
       throw new Error('JSON fetch failed: ' + dataResponse.status);
     }
